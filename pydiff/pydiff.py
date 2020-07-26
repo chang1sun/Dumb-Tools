@@ -50,6 +50,10 @@ class Diff:
         with open(d1) as f1, open(d2) as f2:
             lines1 = [line for line in f1]
             lines2 = [line for line in f2]
+            if len(lines1) - len(lines2) > 0:
+                lines2.extend(['------Empty line------!' for i in range(len(lines1) - len(lines2))])
+            elif len(lines2) - len(lines1) > 0:
+                lines1.extend(['------Empty line------!' for i in range(len(lines2) - len(lines1))])
             for i, (l1, l2) in enumerate(zip(lines1, lines2), start=1):
 
                 l1_f = l1.rstrip() + '\n' if ignore_space else l1 + '\n'

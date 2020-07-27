@@ -1,7 +1,9 @@
 # Dumb-Python-Tools
 Implement some useful tools with python3
 
-CONTENT：
+---
+## CONTENT：
 
-pydiff: A rough python version of diffmerge
-to be continued...
++ pydiff:  A rough python version of [Diffmerge](http://www.sourcegear.com/diffmerge/) *(Diff & folder Diff)*
+
+*to be continued...*

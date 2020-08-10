@@ -2,12 +2,11 @@
 
 """
 I found a useful tool named 'diffmerge', which implement swift function to find difference between
-two directories or files. And I wanna implement it with python3(The best language in the world!).
+two folders or files. Thus implemented it with python3(The best language in the world!).
 """
 
 
-# import logging
-# logging.basicConfig(level=logging.INFO)
+
 import os
 import datetime
 

@@ -1,25 +1,23 @@
 import unittest
 from os import path
-from pydiff import PyDiff, CanNotFindPathError, NotTheRightTypeError
+from pydiff import pydiff, CanNotFindPathError, NotTheRightTypeError
 
-class TestPyDiff(unittest.TestCase):
+class TestPydiff(unittest.TestCase):
 
     def try_has_diff(self, d1, d2, result=None, ignore_space=True):
-        pf = PyDiff()
-        pf.has_diff(d1, d2, ignore_space=ignore_space)
+        pydiff.has_diff(d1, d2, ignore_space=ignore_space)
         if result:
-            self.assertEqual(''.join(pf._log_output), result)
+            self.assertEqual(''.join(pydiff._log_output), result)
 
     def try_has_diffs(self, d1, d2, result=None, ignore_space=True):
-        pf = PyDiff()
-        pf.has_diffs(d1, d2, ignore_space=ignore_space)
+        pydiff.has_diffs(d1, d2, ignore_space=ignore_space)
         if result:
-            self.assertEqual(''.join(pf._log_output), result)
+            self.assertEqual(''.join(pydiff._log_output), result)
 
     def test_ignore_space_true(self):
         d1 = r'D://Test//t3.txt'
         d2 = r'D://Test//t4.txt'
-        self.try_has_diff(d1, d2, result=PyDiff._NO_DIFF)
+        self.try_has_diff(d1, d2, result=pydiff._NO_DIFF)
 
     def test_with_space_False(self):
         d1 = r'D:\Test\t3.txt'
@@ -27,13 +25,13 @@ class TestPyDiff(unittest.TestCase):
         res = r"D://Test//t3.txt: line 1, I <sp> have <sp> a <sp> space <sp>  <sp>  <sp>  <sp>  <sp>  <sp>  <sp> "\
               + '\n' + r'D://Test//t4.txt: line 1, I <sp> have <sp> a <sp> space' + '\n\n'
 
-        self.try_has_diff(d1, d2, result=PyDiff._FILE_DIFF+res, ignore_space=False)
+        self.try_has_diff(d1, d2, result=pydiff._FILE_DIFF+res, ignore_space=False)
 
     def test_ignore_space_false(self):
         d1 = r'D:\Test\t5.txt'
         d2 = r'D:\Test\t6.txt'
         res_list = [
-            PyDiff._FILE_DIFF,
+            pydiff._FILE_DIFF,
             r'D://Test//t5.txt: line 1, Excellent works,',
             '\n',
             r'D://Test//t6.txt: line 1, Excellent work,',
@@ -62,26 +60,26 @@ class TestPyDiff(unittest.TestCase):
     def test_empty_folders(self):
         d1 = r'D:\Test\t1'
         d2 = r'D:\Test\t2'
-        self.try_has_diffs(d1, d2, result=PyDiff._NO_DIFF)
+        self.try_has_diffs(d1, d2, result=pydiff._NO_DIFF)
 
     def test_folders_true(self):
         d1 = r'D:\Test\testdir3'
         d2 = r'D:\Test\testdir4'
-        self.try_has_diffs(d1, d2, result=PyDiff._NO_DIFF, ignore_space=True)
+        self.try_has_diffs(d1, d2, result=pydiff._NO_DIFF, ignore_space=True)
 
     def test_folders_false(self):
         d1 = r'D:\Test\testdir1'
         d2 = r'D:\Test\testdir2'
 
         res_list_ordered = [
-            PyDiff._NAME_DIFF,
+            pydiff._NAME_DIFF,
             r'Only in D:\Test\testdir1:',
             '\n',
             r'//sample3.txt',
             '\n\n'
             r'No extra files in D:\Test\testdir2',
             '\n\n',
-            PyDiff._FILE_DIFF,
+            pydiff._FILE_DIFF,
         ]
 
         res_list_not_ordered = [
@@ -100,11 +98,10 @@ class TestPyDiff(unittest.TestCase):
             + r'D://Test//testdir2//ssps//ggpd//sample2.txt: line 1, not a shit'
             + '\n\n\n'
         ]
-        pf = PyDiff()
-        pf.has_diffs(d1, d2, ignore_space=True)
-        self.assertEqual(''.join(pf._log_output[:5]), ''.join(res_list_ordered))
+        pydiff.has_diffs(d1, d2, ignore_space=True)
+        self.assertEqual(''.join(pydiff._log_output[:5]), ''.join(res_list_ordered))
         for elem in res_list_not_ordered:
-            self.assertIn(elem, pf._log_output)
+            self.assertIn(elem, pydiff._log_output)
 
 
 if __name__ == '__main__':

@@ -11,21 +11,19 @@ import os
 import datetime
 
 
-class PyDiff(object):
+class pydiff(object):
 
     _DATETIME = datetime.datetime.now().__format__("[%Y-%m-%d %H:%M:%S]")
     _NAME_DIFF = f'{_DATETIME}[Info]: Include different files:\n\n'
     _FILE_DIFF = f'{_DATETIME}[Info]: Find Files differences exist in:\n\n'
     _NO_DIFF = f'{_DATETIME}[Info]: No difference exist\n'
-
-    def __init__(self):
-        """
-        'log_output' record the latest log;
-        'cache' is used to handle searching diffrence of mutiple-files;
-        """
-        # self._files_to_be_checked = []
-        self._log_output = []
-        self._cache = []
+    """
+            'log_output' record the latest log;
+            'cache' is used to handle searching diffrence of mutiple-files;
+            """
+    # self._files_to_be_checked = []
+    _log_output = []
+    _cache = []
 
     def __repr__(self):
         return "<PyDiff object>"

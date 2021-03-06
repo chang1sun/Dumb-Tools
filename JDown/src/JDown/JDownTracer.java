@@ -1,41 +1,31 @@
 package JDown;
 
-import javax.swing.text.html.HTMLDocument;
+
 import java.io.*;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.text.FieldPosition;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.Properties;
-import java.util.concurrent.atomic.AtomicLong;
 
 class JDownTracer {
-    private String logFileName; // 下载的文件的名字
-    private Properties log;
-
-    /**
-     * 重新开始下载时，使用该构造函数
-     * @param logFileName
-     */
+    private String logFileName;
+    private Properties properties;
 
 
-    JDownTracer(String logFileName, String url, int threadCount) {
+    JDownTracer(String logFileName, String url, int threadNum) {
         this.logFileName = logFileName + ".properties";
-        this.log = new Properties();
-        log.put("url", url);
-        log.put("hasDown", "0");
-        log.put("threadNum", String.valueOf(threadCount));
-        for (int i = 0; i < threadCount; i++) {
-            log.put("thread_" + i, "0-0");
+        this.properties = new Properties();
+        properties.put("url", url);
+        properties.put("hasDown", "0");
+        properties.put("threadNum", String.valueOf(threadNum));
+        for (int i = 0; i < threadNum; i++) {
+            properties.put("thread_" + i, "0-0");
         }
     }
 
     static void load(JDownTracer tracer) {
-        tracer.log = new Properties();
+        tracer.properties = new Properties();
         try {
             FileInputStream fs = new FileInputStream(tracer.logFileName);
-            tracer.log.load(fs);
+            tracer.properties.load(fs);
+            // close stream in time in case holding the file source too long and thus affect other calls' request.
             fs.close();
         } catch (IOException e) {
             e.printStackTrace();
@@ -44,38 +34,35 @@ class JDownTracer {
 
 
     synchronized void update(int threadID, long length, long pos, long limit) {
-        log.put("thread_"+threadID, pos + "-" + limit);
-        log.put("hasDown", String.valueOf(length + Long.parseLong(log.getProperty("hasDown"))));
+        properties.put("thread_"+threadID, pos + "-" + limit);
+        properties.put("hasDown", String.valueOf(length + Long.parseLong(properties.getProperty("hasDown"))));
 
         try {
-            FileOutputStream file = new FileOutputStream(logFileName); // 每次写时都清空文件
-            log.store(file, null);
+            FileOutputStream file = new FileOutputStream(logFileName);
+            properties.store(file, null);
             file.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    /**
-     * 获取区间信息
-     *      ret[i][0] = threadID, ret[i][1] = lowerBoundID, ret[i][2] = upperBoundID
-     * @return
+    /*
+     * 2d-array storing pos and limit for all threads.
      */
     long[][] getRange() {
-        long[][] range = new long[Integer.parseInt(log.get("threadNum").toString())][3];
-        int[] index = {0};
-        log.forEach((k, v) -> {
-            String key = k.toString();
-            if (key.startsWith("thread_")) {
-                String[] interval = v.toString().split("-");
-                range[index[0]][0] = Long.parseLong(key.substring(key.indexOf("_") + 1));
-                range[index[0]][1] = Long.parseLong(interval[0]);
-                range[index[0]++][2] = Long.parseLong(interval[1]);
-            }
-        });
+        long[][] range = new long[getThreadNum()][2];
+        int threadNum = getThreadNum();
+        for(int i = 0; i < threadNum; i++){
+            String[] val = properties.getProperty(String.format("thread_%d", i)).split("-");
+            range[i][0] = Long.parseLong(val[0]);
+            range[i][1] = Long.parseLong(val[1]);
+        }
         return range;
     }
     long getHasDown() {
-        return Long.parseLong(log.getProperty("hasDown"));
+        return Long.parseLong(properties.getProperty("hasDown"));
+    }
+    int getThreadNum(){
+        return Integer.parseInt(properties.getProperty("threadNum"));
     }
 }

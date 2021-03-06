@@ -23,18 +23,22 @@ public class JDown {
     private final int threadNum;
     private RandomAccessFile localFile;
     private final String localFileName;
+    private String localFilePath;
     private AtomicLong hasDone;
     private long fileSize;
     public AtomicBoolean isWrong;
     private boolean isNew;
     public JDownTracer tracer;
+    private boolean overWriteSign;
 
 
     public JDown(String url, int threadNum){
+        this.overWriteSign = false;
         this.isWrong = new AtomicBoolean(false);
         this.localFileName = url.substring(url.lastIndexOf("/")+1);
         this.threadNum = threadNum;
         this.tracer = new JDownTracer(localFileName, url, threadNum);
+        this.localFilePath = "";
         try{
             this.url = url;
             HttpURLConnection conn = getConn(url);
@@ -48,6 +52,11 @@ public class JDown {
             logErr("Failed in connecting!");
             e.printStackTrace();
         }
+    }
+
+    public JDown(String url, int threadNum, String localFilePath){
+        this(url, threadNum);
+        this.localFilePath = localFilePath;
     }
 
 
@@ -65,86 +74,100 @@ public class JDown {
             logErr("Can't download an empty file");
             return;
         }
-        System.out.println(url+"\n"+fileSize);
         isNew = !Files.exists(Paths.get(localFileName + ".properties"));
 
         if (!isNew){
             continueMission();
         }
-        if(isNew){
+        if(isNew || overWriteSign){
             startNewMission();
         }
-        run();
     }
 
     private void continueMission(){
         JDownTracer.load(tracer);
         hasDone = new AtomicLong(tracer.getHasDown());
-        if ((doOverwrite())){isNew = true; return;}
+        if (hasDone.get() >= fileSize){
+            if ((doOverwrite())){overWriteSign = true;}
+            return;
+        }
+
         try {
-            this.localFile = new RandomAccessFile(localFileName, "rw");
+            this.localFile = new RandomAccessFile(localFilePath+localFileName, "rw");
             this.localFile.setLength(fileSize);
         } catch (IOException e) {
             e.printStackTrace();
         }
-        log(String.format("Continue download mission: \n   [url: %s],\n   [localFile: %s],\n   [download progress: %s]\n   [totalFileSize: %d]",
+        log("loading properties file...");
+        String tab = "            ";
+        log(String.format("Continue download mission:\n\n%s[url: \t%s],\n%s[localFile: \t%s],\n%s[download progress: \t%.2f%%]\n%s[totalFileSize: \t%.2fMb]\n",
+                tab,
                 url,
+                tab,
                 localFileName,
+                tab,
                 hasDone.get() / fileSize / 0.01,
-                fileSize / 1024 / 1024));
+                tab,
+                (double)fileSize / 1024 / 1024));
+        run();
     }
 
     private void startNewMission(){
         tracer = new JDownTracer(localFileName, url, threadNum);
         hasDone = new AtomicLong(0);
         try {
-            this.localFile = new RandomAccessFile(localFileName, "rw");
+            this.localFile = new RandomAccessFile(localFilePath+localFileName, "rw");
             this.localFile.setLength(fileSize);
         } catch (IOException e) {
             e.printStackTrace();
         }
-        log(String.format("Start new download mission: \n   [url: %s],\n   [localFile: %s],\n   [totalFileSize: %d]",
+        String tab = "            ";
+        log(String.format("Start new download mission:\n\n%s[url: \t%s],\n%s[localFile: \t%s],\n%s[totalFileSize: \t%.2fMb]\n",
+                tab,
                 url,
+                tab,
                 localFileName,
-                fileSize));
+                tab,
+                (double)fileSize / 1024 / 1024));
+        run();
     }
 
-    private boolean doOverwrite(){
-        if (hasDone.get() >= fileSize){
-            logErr("File already exists, do you want to overwrite? [y/n]");
-            Scanner input = new Scanner(System.in);
-            if("y".equals(input.next())){
-                try {
-                    Files.deleteIfExists(Paths.get(localFileName));
-                    Files.deleteIfExists(Paths.get(localFileName+".properties"));
-                    log("Preparing to overwrite file...");
-                    return true;
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
+    private boolean doOverwrite() {
+        logErr("File already exists, do you want to overwrite? [y/n]");
+        Scanner input = new Scanner(System.in);
+        if ("y".equals(input.next())) {
+            try {
+                Files.deleteIfExists(Paths.get(localFilePath + localFileName));
+                Files.deleteIfExists(Paths.get(localFileName + ".properties"));
+                log("Preparing to overwrite file...");
+                return true;
+            } catch (IOException e) {
+                e.printStackTrace();
             }
-            else {
-                log("Waiting for program's ending...");
-                return false;
-            }
-        }return false;
+        } else {
+            log("Waiting for program's ending...");
+        }
+        return false;
     }
 
+    /*
+    * Allocate jobs for threads, job range can be glean from tracer if it exist;
+    * */
     public void allocate(){
         log("Allocating jobs for threads...");
         long blockSize = fileSize / threadNum;
         long pos = 0, limit = 0;
         long[][] range = null;
         int threadID = 0;
-        if (!isNew) {
+        if (!isNew && !overWriteSign) {
             range = tracer.getRange();
         }
         for (int i = 0; i < threadNum; i++) {
-            if (!isNew) {
+            if (!isNew && !overWriteSign) {
                 assert range != null;
-                threadID = (int)range[i][0];
-                pos = range[i][1];
-                limit = range[i][2];
+                threadID = i;
+                pos = range[i][0];
+                limit = range[i][1];
             } else {
                 threadID = i;
                 pos = i * blockSize;
@@ -165,16 +188,18 @@ public class JDown {
         int sec = 0;
         long cur = tracer.getHasDown();
         while (!isWrong.get() && cur < fileSize){
-            if(++sec == 1){
-                log(String.format("Download speed: %.1fMb/s; Download progress: %.1f%%", (float)(cur-blockLen)/3/1024/1024, (float)cur / fileSize * 100));
-                sec = 0;
-                blockLen = cur;
-            }
             try {
-                Thread.sleep(2000);
+                Thread.sleep(1000);
+                ProgressBar.flush();
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
+            if(++sec == 1) {
+                System.out.print(String.format("[Speed: %2.1fMb/s][Progress: %2.1f%%]: |-%s-|", (float)(cur-blockLen)/1024/1024, (float)cur / fileSize * 100, ProgressBar.bar((int)(cur * 25 / fileSize ))));
+                sec = 0;
+                blockLen = cur;
+            }
+
             cur = tracer.getHasDown();
         }
         try {
@@ -183,48 +208,57 @@ public class JDown {
             e.printStackTrace();
         }
         long totalTime = (System.currentTimeMillis()-startTime)/1000;
-        int ms = Math.floorMod(totalTime, 60);
-        int ss = (int)totalTime % 60;
+        int ms = (int)totalTime / 60;
+        int ss = Math.floorMod(totalTime, 60);
         if (isWrong.get()){
             try {
                 Files.delete(Paths.get(localFileName));
             } catch (IOException e) {
                 e.printStackTrace();
             }
-            logErr(String.format("Download mission canceled due to a thread meets with trouble! Total time: %dm%ds", ms, ss));
+            logErr(String.format("\nDownload mission canceled due to a thread meets with trouble! Total time: %dm%ds", ms, ss));
         }else{
-            log(String.format("Download mission completed! Total time: %dm%ds", ms, ss));
+            log(String.format("\nDownload mission completed! Total time: %dm%ds", ms, ss));
         }
 
     }
 
     class JDownThread extends Thread{
 
+        /**
+         * pos, limit represent the write position and the last byte of it's job respectively.
+         */
+
         private long pos;
         private final long limit;
         private final String url;
         private final int id;
+        private int bufferSize;
 
         public JDownThread(int id, String url, long pos, long limit){
             this.url = url;
             this.pos = pos;
             this.limit = limit;
             this.id = id;
+            this.bufferSize = 1024 * 1024 * 2;
+        }
+
+        public JDownThread(int id, String url, long pos, long limit, int bufferSize){
+            this(id, url, pos, limit);
+            this.bufferSize = bufferSize;
         }
 
 
-        /* 此处其实可以用channel的transferTo方法，但经过百度，发现在传输4G以上大文件时不适用，遂改成用2M大小的ByteBuffer。
-        * */
         @Override
         public void run() {
-            log(String.format("thread_" + id + "start working!, my responsible range: [%d - %d]", pos, limit));
-            ByteBuffer buffer = ByteBuffer.allocate(1024*1024*2);
+            log(String.format("No."+ id + " thread"  + " start working!, responsible range: [%.2f%% - %.2f%%]", (double)(fileSize-pos)/1024/1024, (double)(fileSize-limit)/1024/1024));
+            ByteBuffer buffer = ByteBuffer.allocate(bufferSize);
             FileChannel writeChannel = localFile.getChannel();
             try {
                 HttpURLConnection conn = getConn(url);
-                conn.setRequestProperty("Range", String.format("bytes=%d-%d", pos, limit));
+                conn.setRequestProperty("Range", String.format("bytes=%d-%d", pos, limit)); // Set thread's working range
                 conn.connect();
-                if (HttpURLConnection.HTTP_PARTIAL != conn.getResponseCode()){
+                if (HttpURLConnection.HTTP_PARTIAL != conn.getResponseCode()){ // HTTP_PARTIAL is a special http status code: 206; Allow get the web content partially when specify a range;
                     logErr("Wrong status code：" + conn.getResponseCode());
                     throw new IOException();
                 }
@@ -233,6 +267,7 @@ public class JDown {
                 while (!isWrong.get() && pos <= limit){
                     buffer.clear();
                     if (-1 != (curPartLen = readChannel.read(buffer))) {
+                        // method "flip" set the pos of buffer to 0; and limit to where pos was just last moment; it is often used to make the buffer ready to write;
                         buffer.flip();
                         while (buffer.hasRemaining()) {
                             writeChannel.write(buffer, pos);
@@ -240,12 +275,11 @@ public class JDown {
                         hasDone.addAndGet(curPartLen);
                         pos += curPartLen;
                         tracer.update(id, curPartLen, pos, limit);
-
                     }
                 }
-                if (!isWrong.get()){
-                    log("Thread_" + id + "has complete it's task!");
-                }
+//                if (!isWrong.get()){
+//                    log("No." + id + " thread" + " has complete it's task!");
+//                }
 
                 if (readChannel != null){readChannel.close();}
 
@@ -264,6 +298,8 @@ public class JDown {
     private static void logErr(String s){
         System.err.printf("[%s] %s\n", new SimpleDateFormat("HH:mm:ss").format(new Date()), s);
     }
+
+
 
     public static void main(String[] args) {
         new JDown("https://dldir1.qq.com/qqfile/qq/PCTIM/TIM3.3.5/TIM3.3.5.22018.exe", 4).startMission();

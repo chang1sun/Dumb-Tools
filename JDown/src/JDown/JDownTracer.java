@@ -1,20 +1,27 @@
 package JDown;
 
 
+/* Resuming from break point, to implement this function, I have looked up several blogs all of which record the thread's job range
+ * in a specific log file. With other forms of record such as the progress, specifically in this program, "hasDown", which is treated as a collective
+ * attribute shared by threads. Due to concurrent problematic accessing, such a sharing attr must be atomic by java.util.concurrent.AtomicLong. And
+ * another attribute "isWrong" is also stored as atomic for same reason.
+ * */
+
 import java.io.*;
 import java.util.Properties;
 
 class JDownTracer {
-    private String logFileName;
-    private Properties properties;
 
+    private Properties properties;
+    private int ThreadNum;
+    private final String logName;
 
     JDownTracer(String logFileName, String url, int threadNum) {
-        this.logFileName = logFileName + ".properties";
+        this.ThreadNum = threadNum;
+        this.logName = logFileName + ".properties";
         this.properties = new Properties();
         properties.put("url", url);
         properties.put("hasDown", "0");
-        properties.put("threadNum", String.valueOf(threadNum));
         for (int i = 0; i < threadNum; i++) {
             properties.put("thread_" + i, "0-0");
         }
@@ -23,7 +30,7 @@ class JDownTracer {
     static void load(JDownTracer tracer) {
         tracer.properties = new Properties();
         try {
-            FileInputStream fs = new FileInputStream(tracer.logFileName);
+            FileInputStream fs = new FileInputStream(tracer.logName);
             tracer.properties.load(fs);
             // close stream in time in case holding the file source too long and thus affect other calls' request.
             fs.close();
@@ -38,7 +45,7 @@ class JDownTracer {
         properties.put("hasDown", String.valueOf(length + Long.parseLong(properties.getProperty("hasDown"))));
 
         try {
-            FileOutputStream file = new FileOutputStream(logFileName);
+            FileOutputStream file = new FileOutputStream(logName);
             properties.store(file, null);
             file.close();
         } catch (IOException e) {
@@ -63,6 +70,6 @@ class JDownTracer {
         return Long.parseLong(properties.getProperty("hasDown"));
     }
     int getThreadNum(){
-        return Integer.parseInt(properties.getProperty("threadNum"));
+        return ThreadNum;
     }
 }

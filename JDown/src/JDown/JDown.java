@@ -106,7 +106,7 @@ public class JDown {
                 tab,
                 localFileName,
                 tab,
-                hasDone.get() / fileSize / 0.01,
+                (double)hasDone.get() / fileSize * 100,
                 tab,
                 (double)fileSize / 1024 / 1024));
         run();
@@ -151,10 +151,10 @@ public class JDown {
     }
 
     /*
-    * Allocate jobs for threads, job range can be glean from tracer if it exist;
-    * */
+     * Allocate jobs for threads, job range can be glean from tracer if it exist;
+     * */
     public void allocate(){
-        log("Allocating jobs for threads...");
+        log("Allocating jobs for [" + threadNum +"] threads...");
         long blockSize = fileSize / threadNum;
         long pos = 0, limit = 0;
         long[][] range = null;
@@ -180,7 +180,7 @@ public class JDown {
     /**
      * blockLen -> progress made 2 seconds before, is used to calculate speed.
      * sec -> render those information every 2 seconds
-    * */
+     * */
     public void run(){
         long startTime = System.currentTimeMillis();
         allocate();
@@ -216,11 +216,19 @@ public class JDown {
             } catch (IOException e) {
                 e.printStackTrace();
             }
-            logErr(String.format("\nDownload mission canceled due to a thread meets with trouble! Total time: %dm%ds", ms, ss));
+            logErr(String.format("\nDownload mission canceled! Total time: %dm%ds", ms, ss));
         }else{
             log(String.format("\nDownload mission completed! Total time: %dm%ds", ms, ss));
         }
 
+    }
+
+
+    private static void log(String s){
+        System.out.printf("[%s] %s\n", new SimpleDateFormat("HH:mm:ss").format(new Date()), s);
+    }
+    private static void logErr(String s){
+        System.err.printf("[%s] %s\n", new SimpleDateFormat("HH:mm:ss").format(new Date()), s);
     }
 
     class JDownThread extends Thread{
@@ -251,7 +259,7 @@ public class JDown {
 
         @Override
         public void run() {
-            log(String.format("No."+ id + " thread"  + " start working!, responsible range: [%.2f%% - %.2f%%]", (double)(fileSize-pos)/1024/1024, (double)(fileSize-limit)/1024/1024));
+//            log(String.format("No."+ id + " thread"  + " start working!, responsible range: [%.2f%% - %.2f%%]", (double)(fileSize-pos)/1024/1024, (double)(fileSize-limit)/1024/1024));
             ByteBuffer buffer = ByteBuffer.allocate(bufferSize);
             FileChannel writeChannel = localFile.getChannel();
             try {
@@ -291,15 +299,6 @@ public class JDown {
 
         }
     }
-
-    private static void log(String s){
-        System.out.printf("[%s] %s\n", new SimpleDateFormat("HH:mm:ss").format(new Date()), s);
-    }
-    private static void logErr(String s){
-        System.err.printf("[%s] %s\n", new SimpleDateFormat("HH:mm:ss").format(new Date()), s);
-    }
-
-
 
     public static void main(String[] args) {
         new JDown("https://dldir1.qq.com/qqfile/qq/PCTIM/TIM3.3.5/TIM3.3.5.22018.exe", 4).startMission();

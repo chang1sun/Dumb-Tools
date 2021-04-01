@@ -19,16 +19,42 @@ import java.util.concurrent.atomic.AtomicLong;
 
 
 public class JDown {
+
     private String url;
     private final int threadNum;
+
+    /**
+     * these three properties indicate the download path, namely, a writable RandomAccessFile instance.
+     */
     private RandomAccessFile localFile;
     private final String localFileName;
     private String localFilePath;
+
+    /**
+     * indicate the progress shared by all threads.
+     */
     private AtomicLong hasDone;
+
     private long fileSize;
+
+    /**
+     * indicate whether one of working threads are interrupted by unknown exceptions, thus notice the others to stop.
+     */
     public AtomicBoolean isWrong;
+
+    /**
+     * indicate whether the task is a new task, serves in further condition check.
+     */
     private boolean isNew;
+
+    /**
+     *  instance of JDownTracer, which monitors the real-time progress of all threads and serves in resuming from break point.
+     */
     public JDownTracer tracer;
+
+    /**
+     * indicate whether the task need overwrite under instructions from console.
+     */
     private boolean overWriteSign;
 
 
@@ -151,7 +177,7 @@ public class JDown {
     }
 
     /*
-     * Allocate jobs for threads, job range can be glean from tracer if it exist;
+     * Allocate job range for threads, job range can be glean from tracer if it exist;
      * */
     public void allocate(){
         log("Allocating jobs for [" + threadNum +"] threads...");
@@ -236,11 +262,16 @@ public class JDown {
         /**
          * pos, limit represent the write position and the last byte of it's job respectively.
          */
-
         private long pos;
         private final long limit;
+
         private final String url;
+
+        /**
+         * Every thread has its own id, on which JDownTracer can monitor.
+         */
         private final int id;
+
         private int bufferSize;
 
         public JDownThread(int id, String url, long pos, long limit){
@@ -259,7 +290,6 @@ public class JDown {
 
         @Override
         public void run() {
-//            log(String.format("No."+ id + " thread"  + " start working!, responsible range: [%.2f%% - %.2f%%]", (double)(fileSize-pos)/1024/1024, (double)(fileSize-limit)/1024/1024));
             ByteBuffer buffer = ByteBuffer.allocate(bufferSize);
             FileChannel writeChannel = localFile.getChannel();
             try {
@@ -285,9 +315,6 @@ public class JDown {
                         tracer.update(id, curPartLen, pos, limit);
                     }
                 }
-//                if (!isWrong.get()){
-//                    log("No." + id + " thread" + " has complete it's task!");
-//                }
 
                 if (readChannel != null){readChannel.close();}
 
@@ -300,7 +327,11 @@ public class JDown {
         }
     }
 
+
     public static void main(String[] args) {
+        /**
+         * test in 'Tim.exe'.
+         */
         new JDown("https://dldir1.qq.com/qqfile/qq/PCTIM/TIM3.3.5/TIM3.3.5.22018.exe", 4).startMission();
     }
 

@@ -1,14 +1,15 @@
 package JDown;
 
 
-/* Resuming from break point, to implement this function, I have looked up several blogs all of which record the thread's job range
- * in a specific log file. With other forms of record such as the progress, specifically in this program, "hasDown", which is treated as a collective
- * attribute shared by threads. Due to concurrent problematic accessing, such a sharing attr must be atomic by java.util.concurrent.AtomicLong. And
- * another attribute "isWrong" is also stored as atomic for same reason.
- * */
 
 import java.io.*;
 import java.util.Properties;
+
+/** Resuming from break point, to implement this function, I have looked up several blogs all of which record the thread's job range
+ *  in a specific log file. With other forms of record such as the progress, specifically in this program, "hasDown", which is treated as a collective
+ *  attribute shared by threads. Due to concurrent problematic accessing, such a sharing attr must be atomic by java.util.concurrent.AtomicLong. And
+ *  another attribute "isWrong" is also stored as atomic for same reason.
+ */
 
 class JDownTracer {
 
@@ -16,6 +17,12 @@ class JDownTracer {
     private int ThreadNum;
     private final String logName;
 
+    /**
+     *
+     * @param logFileName same name with localFile
+     * @param url url
+     * @param threadNum indicated by user who creates JDown instances or by default
+     */
     JDownTracer(String logFileName, String url, int threadNum) {
         this.ThreadNum = threadNum;
         this.logName = logFileName + ".properties";
